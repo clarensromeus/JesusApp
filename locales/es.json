@@ -1,0 +1,44 @@
+{
+  "settings": {
+    "title": "Configuración",
+    "notification": "Notificación",
+    "location": "Ubicación",
+    "language": "Idioma",
+    "darkMode": "Modo Oscuro",
+    "contactUs": "Contáctanos",
+    "linkedAccount": "Cuenta Vinculada",
+    "selectLanguage": "Seleccionar Idioma"
+  },
+  "menu": {
+    "profile": "Perfil",
+    "editProfile": "Editar Perfil",
+    "myPrayer": "Mi Oración",
+    "myDevo": "Mi Devocional",
+    "testimonies": "Testimonios",
+    "recentViewed": "Visto Recientemente",
+    "settings": "Configuración",
+    "changePassword": "Cambiar Contraseña",
+    "logout": "Cerrar Sesión",
+    "tapToChange": "Toca para cambiar la foto de perfil"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "signup": "Registrarse",
+    "forgotPassword": "Olvidé mi Contraseña",
+    "changePassword": "Cambiar Contraseña",
+    "currentPassword": "Contraseña Actual",
+    "newPassword": "Nueva Contraseña",
+    "confirmPassword": "Confirmar Contraseña",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "rememberMe": "Recordarme"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "loading": "Cargando...",
+    "success": "Éxito",
+    "error": "Error"
+  }
+}

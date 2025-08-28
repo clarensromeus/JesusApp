@@ -2,6 +2,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from "expo-router";
 import React, { useState } from 'react';
 import {
   Image,
@@ -23,6 +24,7 @@ export default function CustomHeader({ title = 'TryJesus', showSearch = true }: 
   const colorScheme = useColorScheme();
   const [searchText, setSearchText] = useState('');
   const colors = Colors[colorScheme ?? 'light'];
+  const router = useRouter()
 
   return (
     <LinearGradient
@@ -83,7 +85,7 @@ export default function CustomHeader({ title = 'TryJesus', showSearch = true }: 
             </View>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.profileButton}>
+          <TouchableOpacity onPress={()=> router.push("/menu/menu")} style={styles.profileButton}>
             <Image
               source={{ uri: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face' }}
               style={styles.profileImage}

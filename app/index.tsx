@@ -1,27 +1,159 @@
 import { useThemeColor } from '@/hooks/useThemeColor';
+import {
+  createFacebookAuthRequest,
+  createGoogleAuthRequest,
+  isAppleSignInAvailable,
+  signInWithApple,
+  signInWithFacebookCredential,
+  signInWithGoogleCredential,
+} from '@/utils/socialAuth';
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import { UserCredential } from 'firebase/auth';
+import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { z } from 'zod';
+
+const loginSchema = z.object({
+  emailOrPhone: z.string()
+    .min(1, 'Email or phone number is required')
+    .refine((value) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const phoneRegex = /^[\+]?[1-9][\d]{0,2}[\s]?[\(]?[\d]{1,3}[\)]?[\s]?[\d]{3,4}[\s]?[\d]{3,4}$/;
+      return emailRegex.test(value) || phoneRegex.test(value);
+    }, 'Please enter a valid email address or phone number'),
+  password: z.string()
+    .min(6, 'Password must be at least 6 characters')
+    .max(50, 'Password must be less than 50 characters'),
+  rememberMe: z.boolean().optional(),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function WelcomeScreen() {
-  const [emailOrPhone, setEmailOrPhone] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<string | null>(null);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  const router = useRouter();
 
-  const router = useRouter()
+  // Social Auth Requests
+  const [googleRequest, googleResponse, googlePromptAsync] = createGoogleAuthRequest();
+  const [facebookRequest, facebookResponse, facebookPromptAsync] = createFacebookAuthRequest();
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    watch,
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      emailOrPhone: '',
+      password: '',
+      rememberMe: false,
+    },
+  });
+
+  const rememberMe = watch('rememberMe');
+
+  // Check Apple Sign-In availability
+  useEffect(() => {
+    const checkAppleAvailability = async () => {
+      const available = await isAppleSignInAvailable();
+      setAppleAvailable(available);
+    };
+    checkAppleAvailability();
+  }, []);
+
+  // Handle Google Sign-In Response
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { id_token } = googleResponse.params;
+      if (id_token) {
+        handleSocialSignIn('google', () => signInWithGoogleCredential(id_token));
+      }
+    }
+  }, [googleResponse]);
+
+  // Handle Facebook Sign-In Response
+  useEffect(() => {
+    if (facebookResponse?.type === 'success') {
+      const { access_token } = facebookResponse.params;
+      if (access_token) {
+        handleSocialSignIn('facebook', () => signInWithFacebookCredential(access_token));
+      }
+    }
+  }, [facebookResponse]);
+
+  const onSubmit = async (data: LoginFormData) => {
+    try {
+      console.log('Login data:', data);
+      // Add your login logic here
+      router.push("/(tabs)");
+    } catch (error) {
+      console.error('Login error:', error);
+    }
+  };
+
+  // Social Sign-In Handler
+  const handleSocialSignIn = async (provider: string, signInFunction: () => Promise<UserCredential>) => {
+    setSocialLoading(provider);
+    try {
+      const result = await signInFunction();
+      if (result.user) {
+        console.log(`${provider} sign-in successful:`, result.user.email);
+        router.push("/(tabs)");
+      }
+    } catch (error) {
+      console.error(`${provider} sign-in error:`, error);
+      Alert.alert(
+        'Sign-In Error',
+        `Failed to sign in with ${provider}. Please try again.`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setSocialLoading(null);
+    }
+  };
+
+  // Social Login Button Handlers
+  const handleGoogleSignIn = async () => {
+    try {
+      await googlePromptAsync();
+    } catch (error) {
+      console.error('Google sign-in prompt error:', error);
+    }
+  };
+
+  const handleFacebookSignIn = async () => {
+    try {
+      await facebookPromptAsync();
+    } catch (error) {
+      console.error('Facebook sign-in prompt error:', error);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (!appleAvailable) {
+      Alert.alert('Not Available', 'Apple Sign-In is not available on this device.');
+      return;
+    }
+    await handleSocialSignIn('apple', signInWithApple);
+  };
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -55,16 +187,32 @@ export default function WelcomeScreen() {
               <Text style={[styles.inputLabel, { color: '#666' }]}>
                 Email or Phone Number
               </Text>
-              <TextInput
-                style={[styles.input, { color: textColor, borderColor: '#E5E5E5' }]}
-                placeholder="Enter your email or phone number"
-                placeholderTextColor="#999"
-                value={emailOrPhone}
-                onChangeText={setEmailOrPhone}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
+              <Controller
+                control={control}
+                name="emailOrPhone"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { 
+                        color: textColor, 
+                        borderColor: errors.emailOrPhone ? '#FF6B6B' : '#E5E5E5' 
+                      }
+                    ]}
+                    placeholder="Enter your email or phone number"
+                    placeholderTextColor="#999"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                )}
               />
+              {errors.emailOrPhone && (
+                <Text style={styles.errorText}>{errors.emailOrPhone.message}</Text>
+              )}
             </View>
 
             {/* Password Input */}
@@ -72,46 +220,65 @@ export default function WelcomeScreen() {
               <Text style={[styles.inputLabel, { color: '#666' }]}>
                 Password
               </Text>
-              <View style={[styles.passwordContainer, { borderColor: '#E5E5E5' }]}>
-                <TextInput
-                  style={[styles.passwordInput, { color: textColor }]}
-                  placeholder="Enter password"
-                  placeholderTextColor="#999"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={20}
-                    color="#999"
-                  />
-                </TouchableOpacity>
-              </View>
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <View style={[
+                    styles.passwordContainer, 
+                    { borderColor: errors.password ? '#FF6B6B' : '#E5E5E5' }
+                  ]}>
+                    <TextInput
+                      style={[styles.passwordInput, { color: textColor }]}
+                      placeholder="Enter password"
+                      placeholderTextColor="#999"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={styles.eyeIcon}
+                    >
+                      <Ionicons
+                        name={showPassword ? 'eye-off' : 'eye'}
+                        size={20}
+                        color="#999"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              />
+              {errors.password && (
+                <Text style={styles.errorText}>{errors.password.message}</Text>
+              )}
             </View>
 
             {/* Remember Me & Forgot Password */}
             <View style={styles.optionsRow}>
-              <TouchableOpacity
-                style={styles.rememberMeContainer}
-                onPress={() => setRememberMe(!rememberMe)}
-              >
-                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                  {rememberMe && (
-                    <Ionicons name="checkmark" size={12} color="white" />
-                  )}
-                </View>
-                <Text style={[styles.rememberMeText, { color: '#666' }]}>
-                  Remember me
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity>
+              <Controller
+                control={control}
+                name="rememberMe"
+                render={({ field: { onChange, value } }) => (
+                  <TouchableOpacity
+                    style={styles.rememberMeContainer}
+                    onPress={() => onChange(!value)}
+                  >
+                    <View style={[styles.checkbox, value && styles.checkboxChecked]}>
+                      {value && (
+                        <Ionicons name="checkmark" size={12} color="white" />
+                      )}
+                    </View>
+                    <Text style={[styles.rememberMeText, { color: '#666' }]}>
+                      Remember me
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+              <TouchableOpacity onPress={() => router.push("/forgotPassword")} >
                 <Text style={[styles.forgotPassword, { color: tintColor }]}>
                   Forgot password?
                 </Text>
@@ -119,8 +286,20 @@ export default function WelcomeScreen() {
             </View>
 
             {/* Sign In Button */}
-            <TouchableOpacity onPress={()=> router.push("/(tabs)")} style={[styles.signInButton, { backgroundColor: '#FF8C00' }]}>
-              <Text style={styles.signInButtonText}>Sign In</Text>
+            <TouchableOpacity 
+              onPress={handleSubmit(onSubmit)} 
+              style={[
+                styles.signInButton, 
+                { 
+                  backgroundColor: isSubmitting ? '#CCC' : '#FF8C00',
+                  opacity: isSubmitting ? 0.6 : 1
+                }
+              ]}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.signInButtonText}>
+                {isSubmitting ? 'Signing In...' : 'Sign In'}
+              </Text>
             </TouchableOpacity>
 
             {/* Divider */}
@@ -132,19 +311,60 @@ export default function WelcomeScreen() {
 
             {/* Social Login Buttons */}
             <View style={styles.socialButtonsContainer}>
-              <TouchableOpacity style={styles.socialButton}>
-                <View style={styles.googleIcon}>
-                  <Text style={styles.googleIconText}>G</Text>
-                </View>
+              <TouchableOpacity 
+                style={[
+                  styles.socialButton,
+                  { opacity: socialLoading === 'google' ? 0.6 : 1 }
+                ]}
+                onPress={handleGoogleSignIn}
+                disabled={socialLoading !== null}
+              >
+                {socialLoading === 'google' ? (
+                  <Text style={styles.loadingText}>...</Text>
+                ) : (
+                  <View style={styles.googleIcon}>
+                    <Text style={styles.googleIconText}>G</Text>
+                  </View>
+                )}
               </TouchableOpacity>
               
-              <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#1877F2' }]}>
-                <Ionicons name="logo-facebook" size={24} color="white" />
+              <TouchableOpacity 
+                style={[
+                  styles.socialButton, 
+                  { 
+                    backgroundColor: '#1877F2',
+                    opacity: socialLoading === 'facebook' ? 0.6 : 1
+                  }
+                ]}
+                onPress={handleFacebookSignIn}
+                disabled={socialLoading !== null}
+              >
+                {socialLoading === 'facebook' ? (
+                  <Text style={styles.loadingText}>...</Text>
+                ) : (
+                  <Ionicons name="logo-facebook" size={24} color="white" />
+                )}
               </TouchableOpacity>
               
-              <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}>
-                <Ionicons name="logo-apple" size={24} color="white" />
-              </TouchableOpacity>
+              {appleAvailable && (
+                <TouchableOpacity 
+                  style={[
+                    styles.socialButton, 
+                    { 
+                      backgroundColor: '#000',
+                      opacity: socialLoading === 'apple' ? 0.6 : 1
+                    }
+                  ]}
+                  onPress={handleAppleSignIn}
+                  disabled={socialLoading !== null}
+                >
+                  {socialLoading === 'apple' ? (
+                    <Text style={styles.loadingText}>...</Text>
+                  ) : (
+                    <Ionicons name="logo-apple" size={24} color="white" />
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Sign Up Link */}
@@ -152,7 +372,7 @@ export default function WelcomeScreen() {
               <Text style={[styles.signUpText, { color: '#666' }]}>
                 Not Registered Yet?{' '}
               </Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push("/signup")}>
                 <Text style={[styles.signUpLink, { color: '#FF8C00' }]}>
                   Sign up Now
                 </Text>
@@ -337,5 +557,16 @@ const styles = StyleSheet.create({
   signUpLink: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  errorText: {
+    color: '#FF6B6B',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  loadingText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

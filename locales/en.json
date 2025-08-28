@@ -1,0 +1,44 @@
+{
+  "settings": {
+    "title": "Settings",
+    "notification": "Notification",
+    "location": "Location",
+    "language": "Language",
+    "darkMode": "Dark Mode",
+    "contactUs": "Contact Us",
+    "linkedAccount": "Linked Account",
+    "selectLanguage": "Select Language"
+  },
+  "menu": {
+    "profile": "Profile",
+    "editProfile": "Edit Profile",
+    "myPrayer": "My Prayer",
+    "myDevo": "My Devo",
+    "testimonies": "Testimonies",
+    "recentViewed": "Recent Viewed",
+    "settings": "Settings",
+    "changePassword": "Change Password",
+    "logout": "Logout",
+    "tapToChange": "Tap to change profile picture"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "forgotPassword": "Forgot Password",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "email": "Email",
+    "password": "Password",
+    "rememberMe": "Remember Me"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error"
+  }
+}

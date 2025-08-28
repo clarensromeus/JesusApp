@@ -300,7 +300,7 @@ export default function GiveScreen() {
         >
           <Animated.View style={[styles.headerContent, { opacity: fadeAnim }]}>
             <View style={styles.headerTop}>
-              <Text style={styles.headerTitle}>Give heartfelt onations </Text>
+              <Text style={styles.headerTitle}>Give heartfelt donations </Text>
               <View style={styles.placeholder} />
             </View>
             
